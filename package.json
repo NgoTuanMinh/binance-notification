@@ -1,0 +1,41 @@
+{
+  "name": "binance-coin-tracker",
+  "version": "1.0.0",
+  "description": "Server để theo dõi và phân tích các đồng coin từ Binance",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "start-all": "node startAll.js",
+    "dev": "nodemon server.js",
+    "volume-monitor": "node features/volumeMonitor/volumeMonitor.js",
+    "ai-analyzer": "node features/aiAnalyzer/cryptoAnalyzer.js",
+    "telegram-bot": "node telegramBotPolling.js",
+    "test": "node test.js",
+    "test-telegram-bot": "curl -X GET http://localhost:3010/api/telegram-bot/test",
+    "test-ai-analyzer": "curl -X POST http://localhost:3010/api/telegram-bot/analyze -H 'Content-Type: application/json' -d '{\"symbol\":\"BTC/USDT\",\"timeframe\":\"4h\"}'",
+    "test-gemini-models": "node testGeminiModels.js",
+    "setup-telegram-bot": "node setupTelegramBot.js",
+    "setup-webhook": "node setupTelegramBot.js --setup-webhook",
+    "delete-webhook": "node setupTelegramBot.js --delete-webhook"
+  },
+  "keywords": [
+    "binance",
+    "cryptocurrency",
+    "api",
+    "nodejs"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "axios": "^1.6.0",
+    "ccxt": "^4.5.10",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "technicalindicators": "^3.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

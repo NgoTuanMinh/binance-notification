@@ -1,0 +1,296 @@
+name: Deploy Binance Tracker to VPS
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: "18"
+  APP_NAME: "binance-tracker"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Lint code
+        run: |
+          npm install -g eslint
+          eslint . --ext .js --ignore-path .gitignore
+
+      - name: Check for security vulnerabilities
+        run: npm audit --audit-level moderate
+
+  deploy-staging:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci --production
+
+      - name: Create deployment package
+        run: |
+          tar -czf ${{ env.APP_NAME }}-staging.tar.gz \
+            --exclude=node_modules \
+            --exclude=.git \
+            --exclude=.github \
+            --exclude=*.log \
+            --exclude=.env.local \
+            .
+
+      - name: Deploy to staging VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          port: ${{ secrets.STAGING_PORT }}
+          script: |
+            # Create staging directory
+            mkdir -p /home/deploy/${{ env.APP_NAME }}-staging
+            cd /home/deploy/${{ env.APP_NAME }}-staging
+
+            # Stop existing processes
+            pm2 stop ${{ env.APP_NAME }}-staging || true
+            pm2 delete ${{ env.APP_NAME }}-staging || true
+
+            # Clean old files
+            rm -rf *
+
+      - name: Copy files to staging
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          port: ${{ secrets.STAGING_PORT }}
+          source: "${{ env.APP_NAME }}-staging.tar.gz"
+          target: "/home/deploy/${{ env.APP_NAME }}-staging/"
+
+      - name: Deploy and start staging
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          port: ${{ secrets.STAGING_PORT }}
+          script: |
+            cd /home/deploy/${{ env.APP_NAME }}-staging
+
+            # Extract files
+            tar -xzf ${{ env.APP_NAME }}-staging.tar.gz
+            rm ${{ env.APP_NAME }}-staging.tar.gz
+
+            # Install dependencies
+            npm ci --production
+
+            # Create staging ecosystem config
+            cat > ecosystem-staging.config.js << 'EOF'
+            module.exports = {
+              apps: [{
+                name: '${{ env.APP_NAME }}-staging',
+                script: 'server.js',
+                instances: 1,
+                exec_mode: 'fork',
+                env: {
+                  NODE_ENV: 'staging',
+                  PORT: 3011
+                },
+                log_file: './logs/staging-combined.log',
+                out_file: './logs/staging-out.log',
+                error_file: './logs/staging-error.log',
+                log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+                watch: false,
+                max_memory_restart: '512M',
+                min_uptime: '10s',
+                max_restarts: 5,
+                kill_timeout: 5000,
+                env_file: '.env.staging'
+              }]
+            };
+            EOF
+
+            # Start staging application
+            pm2 start ecosystem-staging.config.js
+            pm2 save
+
+            # Wait for application to start
+            sleep 10
+
+            # Health check
+            if curl -f http://localhost:3011/health; then
+              echo "✅ Staging deployment successful"
+            else
+              echo "❌ Staging deployment failed"
+              pm2 logs ${{ env.APP_NAME }}-staging --lines 50
+              exit 1
+            fi
+
+  deploy-production:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci --production
+
+      - name: Create deployment package
+        run: |
+          tar -czf ${{ env.APP_NAME }}-production.tar.gz \
+            --exclude=node_modules \
+            --exclude=.git \
+            --exclude=.github \
+            --exclude=*.log \
+            --exclude=.env.local \
+            .
+
+      - name: Deploy to production VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          port: ${{ secrets.PRODUCTION_PORT }}
+          script: |
+            # Create backup of current version
+            if [ -d "/home/deploy/${{ env.APP_NAME }}" ]; then
+              cp -r /home/deploy/${{ env.APP_NAME }} /home/deploy/${{ env.APP_NAME }}-backup-$(date +%Y%m%d-%H%M%S)
+            fi
+
+            # Create production directory
+            mkdir -p /home/deploy/${{ env.APP_NAME }}
+            cd /home/deploy/${{ env.APP_NAME }}
+
+            # Stop existing processes
+            pm2 stop ecosystem.config.js || true
+            pm2 delete ecosystem.config.js || true
+
+            # Clean old files (keep logs and .env.local)
+            find . -maxdepth 1 -type f ! -name '*.log' ! -name '.env.local' -delete
+            rm -rf features/ server.js package.json package-lock.json ecosystem.config.js
+
+      - name: Copy files to production
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          port: ${{ secrets.PRODUCTION_PORT }}
+          source: "${{ env.APP_NAME }}-production.tar.gz"
+          target: "/home/deploy/${{ env.APP_NAME }}/"
+
+      - name: Deploy and start production
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          port: ${{ secrets.PRODUCTION_PORT }}
+          script: |
+            cd /home/deploy/${{ env.APP_NAME }}
+
+            # Extract files
+            tar -xzf ${{ env.APP_NAME }}-production.tar.gz
+            rm ${{ env.APP_NAME }}-production.tar.gz
+
+            # Install dependencies
+            npm ci --production
+
+            # Set proper permissions
+            chown -R deploy:deploy .
+            chmod +x *.sh
+
+            # Start production application
+            pm2 start ecosystem.config.js --env production
+            pm2 save
+
+            # Wait for application to start
+            sleep 15
+
+            # Health check
+            if curl -f http://localhost:3010/health; then
+              echo "✅ Production deployment successful"
+              
+              # Send success notification to Telegram
+              if [ -n "${{ secrets.TELEGRAM_BOT_TOKEN }}" ] && [ -n "${{ secrets.TELEGRAM_CHAT_ID }}" ]; then
+                curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+                  -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+                  -d text="🚀 Production deployment successful!%0A%0A📊 Application: Binance Tracker%0A🌐 Environment: Production%0A⏰ Time: $(date)%0A✅ Status: Healthy" \
+                  -d parse_mode="HTML"
+              fi
+            else
+              echo "❌ Production deployment failed"
+              pm2 logs --lines 50
+              
+              # Send failure notification to Telegram
+              if [ -n "${{ secrets.TELEGRAM_BOT_TOKEN }}" ] && [ -n "${{ secrets.TELEGRAM_CHAT_ID }}" ]; then
+                curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+                  -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+                  -d text="🚨 Production deployment failed!%0A%0A📊 Application: Binance Tracker%0A🌐 Environment: Production%0A⏰ Time: $(date)%0A❌ Status: Failed" \
+                  -d parse_mode="HTML"
+              fi
+              
+              # Rollback to previous version
+              echo "🔄 Rolling back to previous version..."
+              LATEST_BACKUP=$(ls -t /home/deploy/${{ env.APP_NAME }}-backup-* | head -1)
+              if [ -n "$LATEST_BACKUP" ]; then
+                rm -rf /home/deploy/${{ env.APP_NAME }}
+                mv "$LATEST_BACKUP" /home/deploy/${{ env.APP_NAME }}
+                cd /home/deploy/${{ env.APP_NAME }}
+                pm2 start ecosystem.config.js --env production
+                pm2 save
+              fi
+              
+              exit 1
+            fi
+
+  notify:
+    needs: [deploy-staging, deploy-production]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Notify deployment status
+        if: github.ref == 'refs/heads/main'
+        run: |
+          if [ "${{ needs.deploy-production.result }}" == "success" ]; then
+            echo "✅ Production deployment completed successfully"
+          else
+            echo "❌ Production deployment failed"
+          fi
