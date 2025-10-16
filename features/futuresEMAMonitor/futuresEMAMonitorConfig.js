@@ -11,7 +11,7 @@ module.exports = {
   // Cấu hình coins để monitor (top 20-100)
   COIN_RANK: {
     MIN_RANK: 20,
-    MAX_RANK: 100 // Monitor top 20-100 coins
+    MAX_RANK: 150 // Monitor top 20-100 coins
   },
 
   // Cấu hình market cap filter
