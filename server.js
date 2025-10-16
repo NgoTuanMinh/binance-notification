@@ -18,7 +18,9 @@ const originalConsoleError = console.error;
 const originalConsoleWarn = console.warn;
 
 function addTimestampToLog(level, ...args) {
-  const timestamp = new Date().toISOString();
+  const now = new Date();
+  // Chuyển đổi sang timezone +7 (GMT+7)
+  const timestamp = new Date(now.getTime() + (7 * 60 * 60 * 1000)).toISOString().replace('Z', '+07:00');
   const message = args.map(arg => 
     typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
   ).join(' ');

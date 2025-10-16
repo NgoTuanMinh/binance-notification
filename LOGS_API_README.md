@@ -32,10 +32,10 @@ GET /api/console-logs?lines=1000&level=log
     "logs": [
       {
         "lineNumber": 201,
-        "timestamp": "2024-01-15T10:30:15.123Z",
+        "timestamp": "2024-01-15T17:30:15.123+07:00",
         "level": "log",
         "message": "Server started successfully",
-        "fullLine": "[2024-01-15T10:30:15.123Z] [LOG] Server started successfully"
+        "fullLine": "[2024-01-15T17:30:15.123+07:00] [LOG] Server started successfully"
       }
     ]
   },
@@ -113,6 +113,7 @@ npm run test-console-logs-api
 
 1. API giới hạn tối đa 1000 dòng log mỗi lần request để tránh quá tải
 2. Logs được lưu trong memory, sẽ mất khi restart server
-3. Timestamp được tạo tự động khi capture log
+3. Timestamp được tạo tự động khi capture log với timezone +7 (GMT+7)
 4. Logs được sắp xếp từ cũ đến mới (dòng cuối cùng là log gần nhất)
 5. Có thể xóa logs để giải phóng memory khi cần thiết
+6. Tất cả thời gian hiển thị theo múi giờ Việt Nam (UTC+7)
