@@ -30,7 +30,7 @@ module.exports = {
   TELEGRAM: {
     ENABLED: true,
     API_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
-    CHAT_ID: process.env.TELEGRAM_NOTIFICATION_CHAT_ID
+    CHAT_ID: process.env.TELEGRAM_FUTURES_NOTIFICATION_CHAT_ID
   },
 
   // Cấu hình Binance API
