@@ -5,6 +5,7 @@ const config = require('./config');
 const VolumeMonitorScheduler = require('./features/volumeMonitor/volumeMonitorScheduler');
 const VolumeMonitorService = require('./features/volumeMonitor/volumeMonitorService');
 const EMAMonitorScheduler = require('./features/emaMonitor/emaMonitorScheduler');
+const FuturesEMAMonitorScheduler = require('./features/futuresEMAMonitor/futuresEMAMonitorScheduler');
 const TelegramService = require('./telegramService');
 const telegramBotRoutes = require('./features/telegramBot/telegramBotRoutes');
 
@@ -84,6 +85,7 @@ const binanceAPI = new BinanceAPI();
 const volumeMonitorScheduler = new VolumeMonitorScheduler();
 const volumeMonitorService = new VolumeMonitorService();
 const emaMonitorScheduler = new EMAMonitorScheduler();
+const futuresEMAMonitorScheduler = new FuturesEMAMonitorScheduler();
 const telegramService = new TelegramService();
 
 // Middleware
@@ -491,6 +493,147 @@ app.post('/api/ema-monitor/run-once', async (req, res) => {
   }
 });
 
+// Futures EMA Monitor API endpoints
+app.get('/api/futures-ema-monitor/status', (req, res) => {
+  try {
+    const status = futuresEMAMonitorScheduler.getStatus();
+    res.json({
+      success: true,
+      data: status,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get futures EMA monitor status',
+      message: error.message
+    });
+  }
+});
+
+app.post('/api/futures-ema-monitor/start', (req, res) => {
+  try {
+    futuresEMAMonitorScheduler.start();
+    res.json({
+      success: true,
+      message: 'Futures EMA monitor scheduler started',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to start futures EMA monitor',
+      message: error.message
+    });
+  }
+});
+
+app.post('/api/futures-ema-monitor/stop', (req, res) => {
+  try {
+    futuresEMAMonitorScheduler.stop();
+    res.json({
+      success: true,
+      message: 'Futures EMA monitor scheduler stopped',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to stop futures EMA monitor',
+      message: error.message
+    });
+  }
+});
+
+app.post('/api/futures-ema-monitor/restart', (req, res) => {
+  try {
+    futuresEMAMonitorScheduler.restart();
+    res.json({
+      success: true,
+      message: 'Futures EMA monitor scheduler restarted',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to restart futures EMA monitor',
+      message: error.message
+    });
+  }
+});
+
+app.get('/api/futures-ema-monitor/cache', (req, res) => {
+  try {
+    const cacheInfo = futuresEMAMonitorScheduler.futuresEMAMonitor.getCacheInfo();
+    res.json({
+      success: true,
+      data: cacheInfo,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get futures EMA monitor cache info',
+      message: error.message
+    });
+  }
+});
+
+app.delete('/api/futures-ema-monitor/cache', (req, res) => {
+  try {
+    futuresEMAMonitorScheduler.futuresEMAMonitor.clearCache();
+    res.json({
+      success: true,
+      message: 'Futures EMA monitor cache cleared successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to clear futures EMA monitor cache',
+      message: error.message
+    });
+  }
+});
+
+app.post('/api/futures-ema-monitor/test', async (req, res) => {
+  try {
+    await futuresEMAMonitorScheduler.testConnections();
+    res.json({
+      success: true,
+      message: 'Futures EMA monitor connection test completed. Check console for results.',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Futures EMA monitor connection test failed',
+      message: error.message
+    });
+  }
+});
+
+app.post('/api/futures-ema-monitor/run-once', async (req, res) => {
+  try {
+    const tradingSignals = await futuresEMAMonitorScheduler.futuresEMAMonitor.checkAllCoinsForTradingSignals();
+    res.json({
+      success: true,
+      data: {
+        tradingSignals: tradingSignals,
+        count: tradingSignals.length
+      },
+      message: `Found ${tradingSignals.length} trading signals`,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to run futures trading check',
+      message: error.message
+    });
+  }
+});
+
 // Console Log API endpoints
 app.get('/api/console-logs', (req, res) => {
   try {
@@ -593,6 +736,7 @@ app.listen(config.PORT, () => {
   console.log(`🔍 Health check: http://localhost:${config.PORT}/health`);
   console.log(`📈 Volume Monitor API: http://localhost:${config.PORT}/api/volume-monitor/status`);
   console.log(`📉 EMA Monitor API: http://localhost:${config.PORT}/api/ema-monitor/status`);
+  console.log(`🎯 Futures EMA Monitor API: http://localhost:${config.PORT}/api/futures-ema-monitor/status`);
   console.log(`🤖 Telegram Bot API: http://localhost:${config.PORT}/api/telegram-bot/test`);
   console.log(`📋 Console Logs API: http://localhost:${config.PORT}/api/console-logs`);
   
@@ -603,6 +747,10 @@ app.listen(config.PORT, () => {
   // Tự động khởi động EMA monitor scheduler
   console.log('🔄 Đang khởi động EMA Monitor Scheduler...');
   emaMonitorScheduler.start();
+  
+  // Tự động khởi động Futures EMA monitor scheduler
+  console.log('🔄 Đang khởi động Futures EMA Monitor Scheduler...');
+  futuresEMAMonitorScheduler.start();
   
   // Test kết nối AI Bot
   console.log('🤖 Đang kiểm tra AI Bot...');

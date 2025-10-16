@@ -176,6 +176,27 @@ class TelegramService {
     return await this.sendMessage(summaryMessage);
   }
 
+  // Gửi thông báo futures trading signal
+  async sendFuturesTradingAlert(signalData) {
+    const message = this.createFuturesTradingMessage(signalData);
+    return await this.sendMessage(message);
+  }
+
+  // Gửi thông báo batch futures trading signals
+  async sendBatchFuturesTradingAlerts(signalDataArray) {
+    if (!signalDataArray || signalDataArray.length === 0) {
+      return true;
+    }
+
+    if (signalDataArray.length === 1) {
+      return await this.sendFuturesTradingAlert(signalDataArray[0]);
+    }
+
+    // Nếu có nhiều signals, gửi summary
+    const summaryMessage = this.createBatchFuturesTradingSummaryMessage(signalDataArray);
+    return await this.sendMessage(summaryMessage);
+  }
+
   // Tạo message summary cho batch
   createBatchSummaryMessage(spikeDataArray) {
     const timestamp = new Date().toLocaleString('vi-VN');
@@ -240,6 +261,75 @@ class TelegramService {
     message += `⚙️ **Cấu hình:**\n`;
     message += `• Rank: \`1-50\`\n`;
     message += `• Khung: \`4h\` | EMA: \`200\``;
+
+    return message;
+  }
+
+  // Tạo message cho futures trading signal
+  createFuturesTradingMessage(signalData) {
+    const timestamp = new Date(signalData.timestamp).toLocaleString('vi-VN');
+    const signalEmoji = signalData.signal === 'LONG' ? '🟢' : '🔴';
+    const signalText = signalData.signal === 'LONG' ? 'LONG' : 'SHORT';
+    
+    return `${signalEmoji} **FUTURES SIGNAL - ${signalText}** ${signalEmoji}
+
+📈 **Coin:** \`${signalData.symbol}\`
+💰 **Giá hiện tại:** \`${this.formatPrice(signalData.currentPrice)}\`
+📊 **EMA 200:** \`${this.formatPrice(signalData.ema200)}\`
+📉 **Giá trước đó:** \`${this.formatPrice(signalData.previousPrice)}\`
+${signalData.signal === 'LONG' ? 
+  `📊 **Khoảng cách:** \`${signalData.priceAboveEMAPercent}%\` trên EMA` :
+  `📊 **Khoảng cách:** \`${signalData.priceBelowEMAPercent}%\` dưới EMA`
+}
+⏰ **Thời gian:** \`${timestamp}\`
+
+⚙️ **Cấu hình:**
+• Rank: \`20-100\`
+• Khung thời gian: \`15m\`
+• EMA Period: \`200\`
+• Cache: \`2h\`
+
+🔗 **Binance Futures:** https://www.binance.com/en/futures/${signalData.symbol}`;
+  }
+
+  // Tạo message summary cho batch futures trading signals
+  createBatchFuturesTradingSummaryMessage(signalDataArray) {
+    const timestamp = new Date().toLocaleString('vi-VN');
+    
+    // Phân loại signals theo LONG/SHORT
+    const longSignals = signalDataArray.filter(signal => signal.signal === 'LONG');
+    const shortSignals = signalDataArray.filter(signal => signal.signal === 'SHORT');
+    
+    let message = `🎯 **MULTIPLE FUTURES SIGNALS DETECTED** 🎯\n\n`;
+    message += `📊 **Tổng số:** \`${signalDataArray.length}\` signals\n`;
+    message += `🟢 **LONG:** \`${longSignals.length}\` | 🔴 **SHORT:** \`${shortSignals.length}\`\n`;
+    message += `⏰ **Thời gian:** \`${timestamp}\`\n\n`;
+
+    // Hiển thị LONG signals
+    if (longSignals.length > 0) {
+      message += `🟢 **LONG SIGNALS:**\n`;
+      longSignals.forEach((signal, index) => {
+        message += `**${index + 1}. ${signal.symbol}**\n`;
+        message += `• Giá: \`${this.formatPrice(signal.currentPrice)}\`\n`;
+        message += `• EMA 200: \`${this.formatPrice(signal.ema200)}\`\n`;
+        message += `• Khoảng cách: \`${signal.priceAboveEMAPercent}%\` trên EMA\n\n`;
+      });
+    }
+
+    // Hiển thị SHORT signals
+    if (shortSignals.length > 0) {
+      message += `🔴 **SHORT SIGNALS:**\n`;
+      shortSignals.forEach((signal, index) => {
+        message += `**${index + 1}. ${signal.symbol}**\n`;
+        message += `• Giá: \`${this.formatPrice(signal.currentPrice)}\`\n`;
+        message += `• EMA 200: \`${this.formatPrice(signal.ema200)}\`\n`;
+        message += `• Khoảng cách: \`${signal.priceBelowEMAPercent}%\` dưới EMA\n\n`;
+      });
+    }
+
+    message += `⚙️ **Cấu hình:**\n`;
+    message += `• Rank: \`20-100\`\n`;
+    message += `• Khung: \`15m\` | EMA: \`200\``;
 
     return message;
   }
