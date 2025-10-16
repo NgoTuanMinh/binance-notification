@@ -155,6 +155,27 @@ class TelegramService {
     return await this.sendMessage(summaryMessage);
   }
 
+  // Gửi thông báo EMA cross
+  async sendEMACrossAlert(crossData) {
+    const message = this.createEMACrossMessage(crossData);
+    return await this.sendMessage(message);
+  }
+
+  // Gửi thông báo batch EMA crosses
+  async sendBatchEMACrossAlerts(crossDataArray) {
+    if (!crossDataArray || crossDataArray.length === 0) {
+      return true;
+    }
+
+    if (crossDataArray.length === 1) {
+      return await this.sendEMACrossAlert(crossDataArray[0]);
+    }
+
+    // Nếu có nhiều crosses, gửi summary
+    const summaryMessage = this.createBatchEMASummaryMessage(crossDataArray);
+    return await this.sendMessage(summaryMessage);
+  }
+
   // Tạo message summary cho batch
   createBatchSummaryMessage(spikeDataArray) {
     const timestamp = new Date().toLocaleString('vi-VN');
@@ -175,6 +196,50 @@ class TelegramService {
     message += `• Rank: \`${volumeConfig.COIN_RANK.MIN_RANK}-${volumeConfig.COIN_RANK.MAX_RANK}\`\n`;
     message += `• Market cap: \`${volumeConfig.MARKET_CAP.ENABLED ? '≤ ' + this.formatNumber(volumeConfig.MARKET_CAP.MAX_MARKET_CAP) : 'Không giới hạn'}\`\n`;
     message += `• Khung: \`${volumeConfig.TIME_FRAME}\` | Ngưỡng: \`${volumeConfig.VOLUME_SPIKE_MULTIPLIER}x\``;
+
+    return message;
+  }
+
+  // Tạo message cho EMA cross
+  createEMACrossMessage(crossData) {
+    const timestamp = new Date(crossData.timestamp).toLocaleString('vi-VN');
+    
+    return `📉 **EMA 200 CROSS DETECTED** 📉
+
+📈 **Coin:** \`${crossData.symbol}\`
+💰 **Giá hiện tại:** \`${this.formatPrice(crossData.currentPrice)}\`
+📊 **EMA 200:** \`${this.formatPrice(crossData.ema200)}\`
+📉 **Giá trước đó:** \`${this.formatPrice(crossData.previousPrice)}\`
+📊 **Khoảng cách:** \`${crossData.priceBelowEMAPercent}%\` dưới EMA
+⏰ **Thời gian:** \`${timestamp}\`
+
+⚙️ **Cấu hình:**
+• Rank: \`1-50\`
+• Khung thời gian: \`4h\`
+• EMA Period: \`200\`
+• Cache: \`6h\`
+
+🔗 **Binance:** https://www.binance.com/en/trade/${crossData.symbol}`;
+  }
+
+  // Tạo message summary cho batch EMA crosses
+  createBatchEMASummaryMessage(crossDataArray) {
+    const timestamp = new Date().toLocaleString('vi-VN');
+    
+    let message = `📉 **MULTIPLE EMA 200 CROSSES DETECTED** 📉\n\n`;
+    message += `📊 **Tổng số:** \`${crossDataArray.length}\` coins\n`;
+    message += `⏰ **Thời gian:** \`${timestamp}\`\n\n`;
+
+    crossDataArray.forEach((cross, index) => {
+      message += `**${index + 1}. ${cross.symbol}**\n`;
+      message += `• Giá: \`${this.formatPrice(cross.currentPrice)}\`\n`;
+      message += `• EMA 200: \`${this.formatPrice(cross.ema200)}\`\n`;
+      message += `• Khoảng cách: \`${cross.priceBelowEMAPercent}%\` dưới EMA\n\n`;
+    });
+
+    message += `⚙️ **Cấu hình:**\n`;
+    message += `• Rank: \`1-50\`\n`;
+    message += `• Khung: \`4h\` | EMA: \`200\``;
 
     return message;
   }

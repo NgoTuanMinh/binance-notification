@@ -4,6 +4,7 @@ const BinanceAPI = require('./binanceAPI');
 const config = require('./config');
 const VolumeMonitorScheduler = require('./features/volumeMonitor/volumeMonitorScheduler');
 const VolumeMonitorService = require('./features/volumeMonitor/volumeMonitorService');
+const EMAMonitorScheduler = require('./features/emaMonitor/emaMonitorScheduler');
 const TelegramService = require('./telegramService');
 const telegramBotRoutes = require('./features/telegramBot/telegramBotRoutes');
 
@@ -80,6 +81,7 @@ const app = express();
 const binanceAPI = new BinanceAPI();
 const volumeMonitorScheduler = new VolumeMonitorScheduler();
 const volumeMonitorService = new VolumeMonitorService();
+const emaMonitorScheduler = new EMAMonitorScheduler();
 const telegramService = new TelegramService();
 
 // Middleware
@@ -346,6 +348,147 @@ app.post('/api/volume-monitor/run-once', async (req, res) => {
   }
 });
 
+// EMA Monitor API endpoints
+app.get('/api/ema-monitor/status', (req, res) => {
+  try {
+    const status = emaMonitorScheduler.getStatus();
+    res.json({
+      success: true,
+      data: status,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get EMA monitor status',
+      message: error.message
+    });
+  }
+});
+
+app.post('/api/ema-monitor/start', (req, res) => {
+  try {
+    emaMonitorScheduler.start();
+    res.json({
+      success: true,
+      message: 'EMA monitor scheduler started',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to start EMA monitor',
+      message: error.message
+    });
+  }
+});
+
+app.post('/api/ema-monitor/stop', (req, res) => {
+  try {
+    emaMonitorScheduler.stop();
+    res.json({
+      success: true,
+      message: 'EMA monitor scheduler stopped',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to stop EMA monitor',
+      message: error.message
+    });
+  }
+});
+
+app.post('/api/ema-monitor/restart', (req, res) => {
+  try {
+    emaMonitorScheduler.restart();
+    res.json({
+      success: true,
+      message: 'EMA monitor scheduler restarted',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to restart EMA monitor',
+      message: error.message
+    });
+  }
+});
+
+app.get('/api/ema-monitor/cache', (req, res) => {
+  try {
+    const cacheInfo = emaMonitorScheduler.emaMonitor.getCacheInfo();
+    res.json({
+      success: true,
+      data: cacheInfo,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get EMA monitor cache info',
+      message: error.message
+    });
+  }
+});
+
+app.delete('/api/ema-monitor/cache', (req, res) => {
+  try {
+    emaMonitorScheduler.emaMonitor.clearCache();
+    res.json({
+      success: true,
+      message: 'EMA monitor cache cleared successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to clear EMA monitor cache',
+      message: error.message
+    });
+  }
+});
+
+app.post('/api/ema-monitor/test', async (req, res) => {
+  try {
+    await emaMonitorScheduler.testConnections();
+    res.json({
+      success: true,
+      message: 'EMA monitor connection test completed. Check console for results.',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'EMA monitor connection test failed',
+      message: error.message
+    });
+  }
+});
+
+app.post('/api/ema-monitor/run-once', async (req, res) => {
+  try {
+    const emaCrosses = await emaMonitorScheduler.emaMonitor.checkAllCoinsForEMACross();
+    res.json({
+      success: true,
+      data: {
+        emaCrosses: emaCrosses,
+        count: emaCrosses.length
+      },
+      message: `Found ${emaCrosses.length} EMA crosses`,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to run EMA check',
+      message: error.message
+    });
+  }
+});
+
 // Console Log API endpoints
 app.get('/api/console-logs', (req, res) => {
   try {
@@ -447,12 +590,17 @@ app.listen(config.PORT, () => {
   console.log(`📊 API endpoint: http://localhost:${config.PORT}/api/coins`);
   console.log(`🔍 Health check: http://localhost:${config.PORT}/health`);
   console.log(`📈 Volume Monitor API: http://localhost:${config.PORT}/api/volume-monitor/status`);
+  console.log(`📉 EMA Monitor API: http://localhost:${config.PORT}/api/ema-monitor/status`);
   console.log(`🤖 Telegram Bot API: http://localhost:${config.PORT}/api/telegram-bot/test`);
   console.log(`📋 Console Logs API: http://localhost:${config.PORT}/api/console-logs`);
   
   // Tự động khởi động volume monitor scheduler
   console.log('🔄 Đang khởi động Volume Monitor Scheduler...');
   volumeMonitorScheduler.start();
+  
+  // Tự động khởi động EMA monitor scheduler
+  console.log('🔄 Đang khởi động EMA Monitor Scheduler...');
+  emaMonitorScheduler.start();
   
   // Test kết nối AI Bot
   console.log('🤖 Đang kiểm tra AI Bot...');
