@@ -14,6 +14,7 @@
     "test-telegram-bot": "curl -X GET http://localhost:3010/api/telegram-bot/test",
     "test-ai-analyzer": "curl -X POST http://localhost:3010/api/telegram-bot/analyze -H 'Content-Type: application/json' -d '{\"symbol\":\"BTC/USDT\",\"timeframe\":\"4h\"}'",
     "test-gemini-models": "node testGeminiModels.js",
+    "test-console-logs-api": "node test-console-logs-api.js",
     "setup-telegram-bot": "node setupTelegramBot.js",
     "setup-webhook": "node setupTelegramBot.js --setup-webhook",
     "delete-webhook": "node setupTelegramBot.js --delete-webhook"

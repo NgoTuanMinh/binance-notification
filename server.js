@@ -7,6 +7,51 @@ const VolumeMonitorService = require('./features/volumeMonitor/volumeMonitorServ
 const TelegramService = require('./telegramService');
 const telegramBotRoutes = require('./features/telegramBot/telegramBotRoutes');
 
+// Console log capture
+const consoleLogs = [];
+const maxLogLines = 1000;
+
+// Override console methods để capture logs
+const originalConsoleLog = console.log;
+const originalConsoleError = console.error;
+const originalConsoleWarn = console.warn;
+
+function addTimestampToLog(level, ...args) {
+  const timestamp = new Date().toISOString();
+  const message = args.map(arg => 
+    typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+  ).join(' ');
+  
+  const logEntry = {
+    timestamp,
+    level,
+    message,
+    fullLine: `[${timestamp}] [${level.toUpperCase()}] ${message}`
+  };
+  
+  consoleLogs.push(logEntry);
+  
+  // Giữ chỉ 1000 dòng gần nhất
+  if (consoleLogs.length > maxLogLines) {
+    consoleLogs.shift();
+  }
+}
+
+console.log = function(...args) {
+  addTimestampToLog('log', ...args);
+  originalConsoleLog.apply(console, args);
+};
+
+console.error = function(...args) {
+  addTimestampToLog('error', ...args);
+  originalConsoleError.apply(console, args);
+};
+
+console.warn = function(...args) {
+  addTimestampToLog('warn', ...args);
+  originalConsoleWarn.apply(console, args);
+};
+
 // Utility function để format số
 function formatNumber(num) {
   if (num >= 1e9) {
@@ -301,6 +346,75 @@ app.post('/api/volume-monitor/run-once', async (req, res) => {
   }
 });
 
+// Console Log API endpoints
+app.get('/api/console-logs', (req, res) => {
+  try {
+    const { lines = 1000, level } = req.query;
+    const linesToRead = Math.min(parseInt(lines), 1000); // Giới hạn tối đa 1000 dòng
+    
+    let filteredLogs = consoleLogs;
+    
+    // Filter theo level nếu được chỉ định
+    if (level && ['log', 'error', 'warn'].includes(level)) {
+      filteredLogs = consoleLogs.filter(log => log.level === level);
+    }
+    
+    // Lấy số dòng gần nhất
+    const recentLogs = filteredLogs.slice(-linesToRead);
+    
+    res.json({
+      success: true,
+      data: {
+        logType: 'console',
+        totalLogs: consoleLogs.length,
+        filteredLogs: filteredLogs.length,
+        requestedLines: linesToRead,
+        returnedLines: recentLogs.length,
+        level: level || 'all',
+        // logs: recentLogs.map((log, index) => ({
+        //   lineNumber: filteredLogs.length - linesToRead + index + 1,
+        //   timestamp: log.timestamp,
+        //   level: log.level,
+        //   message: log.message,
+        //   fullLine: log.fullLine
+        // }))
+        logs: recentLogs.map(log => log.fullLine)
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('Error reading console logs:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to read console logs',
+      message: error.message
+    });
+  }
+});
+
+// API endpoint để clear console logs
+app.delete('/api/console-logs', (req, res) => {
+  try {
+    const initialCount = consoleLogs.length;
+    consoleLogs.length = 0; // Clear array
+    
+    res.json({
+      success: true,
+      message: `Cleared ${initialCount} console log entries`,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('Error clearing console logs:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to clear console logs',
+      message: error.message
+    });
+  }
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({
@@ -334,6 +448,7 @@ app.listen(config.PORT, () => {
   console.log(`🔍 Health check: http://localhost:${config.PORT}/health`);
   console.log(`📈 Volume Monitor API: http://localhost:${config.PORT}/api/volume-monitor/status`);
   console.log(`🤖 Telegram Bot API: http://localhost:${config.PORT}/api/telegram-bot/test`);
+  console.log(`📋 Console Logs API: http://localhost:${config.PORT}/api/console-logs`);
   
   // Tự động khởi động volume monitor scheduler
   console.log('🔄 Đang khởi động Volume Monitor Scheduler...');
