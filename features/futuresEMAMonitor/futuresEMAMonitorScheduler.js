@@ -1,12 +1,214 @@
 require('dotenv').config({ path: '.env.local' });
 const FuturesEMAMonitorService = require('./futuresEMAMonitorService');
-const TelegramService = require('../../telegramService');
 const futuresEMAConfig = require('./futuresEMAMonitorConfig');
+
+// Tạo TelegramService riêng cho futures với chat ID riêng
+class FuturesTelegramService {
+  constructor() {
+    this.apiToken = futuresEMAConfig.TELEGRAM.API_TOKEN;
+    this.chatId = futuresEMAConfig.TELEGRAM.CHAT_ID;
+    this.baseUrl = `https://api.telegram.org/bot${this.apiToken}`;
+    this.enabled = futuresEMAConfig.TELEGRAM.ENABLED;
+  }
+
+  // Kiểm tra cấu hình Telegram
+  isConfigured() {
+    return this.enabled && this.apiToken && this.chatId;
+  }
+
+  // Gửi message đến Telegram
+  async sendMessage(message, parseMode = 'Markdown') {
+    if (!this.isConfigured()) {
+      console.warn('⚠️ Futures Telegram không được cấu hình đúng cách. Bỏ qua gửi thông báo.');
+      return false;
+    }
+
+    try {
+      const axios = require('axios');
+      const response = await axios.post(`${this.baseUrl}/sendMessage`, {
+        chat_id: this.chatId,
+        text: message,
+        parse_mode: parseMode,
+        disable_web_page_preview: true
+      });
+
+      if (response.data.ok) {
+        console.log('✅ Đã gửi thông báo Futures Telegram thành công');
+        return true;
+      } else {
+        console.error('❌ Lỗi gửi Futures Telegram:', response.data.description);
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Lỗi gửi Futures Telegram:', error.message);
+      return false;
+    }
+  }
+
+  // Gửi thông báo futures trading signal
+  async sendFuturesTradingAlert(signalData) {
+    const message = this.createFuturesTradingMessage(signalData);
+    return await this.sendMessage(message);
+  }
+
+  // Gửi thông báo batch futures trading signals
+  async sendBatchFuturesTradingAlerts(signalDataArray) {
+    if (!signalDataArray || signalDataArray.length === 0) {
+      return true;
+    }
+
+    if (signalDataArray.length === 1) {
+      return await this.sendFuturesTradingAlert(signalDataArray[0]);
+    }
+
+    // Nếu có nhiều signals, gửi summary
+    const summaryMessage = this.createBatchFuturesTradingSummaryMessage(signalDataArray);
+    return await this.sendMessage(summaryMessage);
+  }
+
+  // Gửi thông báo hệ thống
+  async sendSystemAlert(message) {
+    const systemMessage = `🔧 **FUTURES SYSTEM ALERT** 🔧\n\n${message}`;
+    return await this.sendMessage(systemMessage);
+  }
+
+  // Gửi thông báo lỗi
+  async sendErrorAlert(errorMessage) {
+    const errorMsg = `❌ **FUTURES ERROR ALERT** ❌\n\n${errorMessage}`;
+    return await this.sendMessage(errorMsg);
+  }
+
+  // Tạo message cho futures trading signal
+  createFuturesTradingMessage(signalData) {
+    const timestamp = new Date(signalData.timestamp).toLocaleString('vi-VN');
+    const signalEmoji = signalData.signal === 'LONG' ? '🟢' : '🔴';
+    const signalText = signalData.signal === 'LONG' ? 'LONG' : 'SHORT';
+    
+    return `${signalEmoji} **FUTURES SIGNAL - ${signalText}** ${signalEmoji}
+
+📈 **Coin:** \`${signalData.symbol}\`
+💰 **Giá hiện tại:** \`${this.formatPrice(signalData.currentPrice)}\`
+📊 **EMA 200:** \`${this.formatPrice(signalData.ema200)}\`
+📉 **Giá trước đó:** \`${this.formatPrice(signalData.previousPrice)}\`
+${signalData.signal === 'LONG' ? 
+  `📊 **Khoảng cách:** \`${signalData.priceAboveEMAPercent}%\` trên EMA` :
+  `📊 **Khoảng cách:** \`${signalData.priceBelowEMAPercent}%\` dưới EMA`
+}
+⏰ **Thời gian:** \`${timestamp}\`
+
+⚙️ **Cấu hình:**
+• Rank: \`20-150\`
+• Khung thời gian: \`15m\`
+• EMA Period: \`200\`
+• Cache: \`2h\`
+
+🔗 **Binance Futures:** https://www.binance.com/en/futures/${signalData.symbol}`;
+  }
+
+  // Tạo message summary cho batch futures trading signals
+  createBatchFuturesTradingSummaryMessage(signalDataArray) {
+    const timestamp = new Date().toLocaleString('vi-VN');
+    
+    // Phân loại signals theo LONG/SHORT
+    const longSignals = signalDataArray.filter(signal => signal.signal === 'LONG');
+    const shortSignals = signalDataArray.filter(signal => signal.signal === 'SHORT');
+    
+    let message = `🎯 **MULTIPLE FUTURES SIGNALS DETECTED** 🎯\n\n`;
+    message += `📊 **Tổng số:** \`${signalDataArray.length}\` signals\n`;
+    message += `🟢 **LONG:** \`${longSignals.length}\` | 🔴 **SHORT:** \`${shortSignals.length}\`\n`;
+    message += `⏰ **Thời gian:** \`${timestamp}\`\n\n`;
+
+    // Hiển thị LONG signals
+    if (longSignals.length > 0) {
+      message += `🟢 **LONG SIGNALS:**\n`;
+      longSignals.forEach((signal, index) => {
+        message += `**${index + 1}. ${signal.symbol}**\n`;
+        message += `• Giá: \`${this.formatPrice(signal.currentPrice)}\`\n`;
+        message += `• EMA 200: \`${this.formatPrice(signal.ema200)}\`\n`;
+        message += `• Khoảng cách: \`${signal.priceAboveEMAPercent}%\` trên EMA\n\n`;
+      });
+    }
+
+    // Hiển thị SHORT signals
+    if (shortSignals.length > 0) {
+      message += `🔴 **SHORT SIGNALS:**\n`;
+      shortSignals.forEach((signal, index) => {
+        message += `**${index + 1}. ${signal.symbol}**\n`;
+        message += `• Giá: \`${this.formatPrice(signal.currentPrice)}\`\n`;
+        message += `• EMA 200: \`${this.formatPrice(signal.ema200)}\`\n`;
+        message += `• Khoảng cách: \`${signal.priceBelowEMAPercent}%\` dưới EMA\n\n`;
+      });
+    }
+
+    message += `⚙️ **Cấu hình:**\n`;
+    message += `• Rank: \`20-150\`\n`;
+    message += `• Khung: \`15m\` | EMA: \`200\``;
+
+    return message;
+  }
+
+  // Format số để hiển thị
+  formatNumber(num) {
+    if (num >= 1e9) {
+      return (num / 1e9).toFixed(2) + 'B';
+    } else if (num >= 1e6) {
+      return (num / 1e6).toFixed(2) + 'M';
+    } else if (num >= 1e3) {
+      return (num / 1e3).toFixed(2) + 'K';
+    } else {
+      return num.toFixed(2);
+    }
+  }
+
+  // Format giá
+  formatPrice(price) {
+    if (price >= 1) {
+      return '$' + price.toFixed(2);
+    } else if (price >= 0.01) {
+      return '$' + price.toFixed(4);
+    } else {
+      return '$' + price.toFixed(6);
+    }
+  }
+
+  // Test kết nối Telegram
+  async testConnection() {
+    if (!this.isConfigured()) {
+      return {
+        success: false,
+        message: 'Futures Telegram chưa được cấu hình đúng cách'
+      };
+    }
+
+    try {
+      const axios = require('axios');
+      const response = await axios.get(`${this.baseUrl}/getMe`);
+      
+      if (response.data.ok) {
+        const botInfo = response.data.result;
+        return {
+          success: true,
+          message: `Kết nối thành công với futures bot: @${botInfo.username}`
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Không thể kết nối với Telegram API'
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Lỗi kết nối: ${error.message}`
+      };
+    }
+  }
+}
 
 class FuturesEMAMonitorScheduler {
   constructor() {
     this.futuresEMAMonitor = new FuturesEMAMonitorService();
-    this.telegramService = new TelegramService();
+    this.telegramService = new FuturesTelegramService();
     this.isRunning = false;
     this.intervalId = null;
     this.startTime = null;
@@ -35,6 +237,7 @@ class FuturesEMAMonitorScheduler {
     }
     
     console.log(configMessage);
+    console.log(`📱 Futures Chat ID: ${futuresEMAConfig.TELEGRAM.CHAT_ID ? 'Đã cấu hình' : 'Chưa cấu hình'}`);
 
     // Chạy ngay lần đầu
     this.runFuturesTradingCheck();
