@@ -87,12 +87,11 @@ class FuturesTelegramService {
     return `${signalEmoji} **FUTURES SIGNAL - ${signalText}** ${signalEmoji}
 
 📈 **Coin:** \`${signalData.symbol}\`
-💰 **Giá hiện tại:** \`${this.formatPrice(signalData.currentPrice)}\`
+💰 **Giá:** \`${this.formatPrice(signalData.currentPrice)}\`
 📊 **EMA 200:** \`${this.formatPrice(signalData.ema200)}\`
-📉 **Giá trước đó:** \`${this.formatPrice(signalData.previousPrice)}\`
 ${signalData.signal === 'LONG' ? 
-  `📊 **Khoảng cách:** \`${signalData.priceAboveEMAPercent}%\` trên EMA` :
-  `📊 **Khoảng cách:** \`${signalData.priceBelowEMAPercent}%\` dưới EMA`
+  `📈 **Khoảng cách:** \`${signalData.priceAboveEMAPercent}%\` trên EMA` :
+  `📉 **Khoảng cách:** \`${signalData.priceBelowEMAPercent}%\` dưới EMA`
 }
 ⏰ **Thời gian:** \`${timestamp}\`
 

@@ -34,5 +34,14 @@ module.exports = {
   },
 
   // Cấu hình Binance API
-  BINANCE_API_BASE_URL: process.env.BINANCE_API_BASE_URL || 'https://api.binance.com'
+  BINANCE_API_BASE_URL: process.env.BINANCE_API_BASE_URL || 'https://api.binance.com',
+  
+  // Cấu hình kết nối và retry
+  CONNECTION: {
+    TIMEOUT_MS: 30000, // 30 giây timeout
+    MAX_RETRIES: 3,
+    RETRY_DELAY_MS: 1000, // 1 giây
+    RETRY_DELAY_MULTIPLIER: 2,
+    REQUEST_DELAY_MS: 200 // Delay giữa các request
+  }
 };
