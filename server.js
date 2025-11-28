@@ -754,37 +754,37 @@ app.listen(config.PORT, () => {
   
   // Test kết nối AI Bot
   console.log('🤖 Đang kiểm tra AI Bot...');
-  testAIBotConnections();
+  // testAIBotConnections();
 });
 
 // Test kết nối AI Bot
-async function testAIBotConnections() {
-  try {
-    const TelegramBotHandler = require('./features/telegramBot/telegramBotHandler');
-    const CryptoAnalyzer = require('./features/aiAnalyzer/cryptoAnalyzer');
+// async function testAIBotConnections() {
+//   try {
+//     const TelegramBotHandler = require('./features/telegramBot/telegramBotHandler');
+//     const CryptoAnalyzer = require('./features/aiAnalyzer/cryptoAnalyzer');
     
-    const telegramBot = new TelegramBotHandler();
-    const cryptoAnalyzer = new CryptoAnalyzer();
+//     const telegramBot = new TelegramBotHandler();
+//     const cryptoAnalyzer = new CryptoAnalyzer();
     
-    // Test Telegram Bot
-    const telegramTest = await telegramBot.testConnection();
-    console.log(`📱 Telegram Bot: ${telegramTest.success ? '✅' : '❌'} ${telegramTest.message}`);
+//     // Test Telegram Bot
+//     const telegramTest = await telegramBot.testConnection();
+//     console.log(`📱 Telegram Bot: ${telegramTest.success ? '✅' : '❌'} ${telegramTest.message}`);
     
-    // Test Crypto Analyzer
-    const analyzerTest = await cryptoAnalyzer.testConnections();
-    console.log(`📊 Binance API: ${analyzerTest.binance.success ? '✅' : '❌'} ${analyzerTest.binance.message}`);
-    console.log(`🧠 Gemini AI: ${analyzerTest.gemini.success ? '✅' : '❌'} ${analyzerTest.gemini.message}`);
+//     // Test Crypto Analyzer
+//     const analyzerTest = await cryptoAnalyzer.testConnections();
+//     console.log(`📊 Binance API: ${analyzerTest.binance.success ? '✅' : '❌'} ${analyzerTest.binance.message}`);
+//     console.log(`🧠 Gemini AI: ${analyzerTest.gemini.success ? '✅' : '❌'} ${analyzerTest.gemini.message}`);
     
-    if (telegramTest.success && analyzerTest.binance.success) {
-      console.log('🎯 AI Bot sẵn sàng hoạt động!');
-      console.log('💬 Sử dụng Telegram Bot với các command: /start, /help, /analyze');
-    } else {
-      console.log('⚠️ AI Bot cần cấu hình thêm. Kiểm tra .env.local');
-    }
+//     if (telegramTest.success && analyzerTest.binance.success) {
+//       console.log('🎯 AI Bot sẵn sàng hoạt động!');
+//       console.log('💬 Sử dụng Telegram Bot với các command: /start, /help, /analyze');
+//     } else {
+//       console.log('⚠️ AI Bot cần cấu hình thêm. Kiểm tra .env.local');
+//     }
     
-  } catch (error) {
-    console.error('❌ Lỗi kiểm tra AI Bot:', error.message);
-  }
-}
+//   } catch (error) {
+//     console.error('❌ Lỗi kiểm tra AI Bot:', error.message);
+//   }
+// }
 
 module.exports = app;

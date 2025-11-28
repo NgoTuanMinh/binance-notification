@@ -1,6 +1,6 @@
 require('dotenv').config({ path: '.env.local' });
 const axios = require('axios');
-const CryptoAnalyzer = require('../aiAnalyzer/cryptoAnalyzer');
+// const CryptoAnalyzer = require('../aiAnalyzer/cryptoAnalyzer');
 const config = require('../../config');
 
 class TelegramBotHandler {
@@ -8,7 +8,7 @@ class TelegramBotHandler {
     this.botToken = config.TELEGRAM_BOT_TOKEN;
     this.botChatId = config.TELEGRAM_BOT_CHAT_ID;
     this.baseUrl = `https://api.telegram.org/bot${this.botToken}`;
-    this.cryptoAnalyzer = new CryptoAnalyzer();
+    // this.cryptoAnalyzer = new CryptoAnalyzer();
     this.isConfigured = this.botToken && this.botChatId;
   }
 
