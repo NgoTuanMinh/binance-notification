@@ -45,7 +45,23 @@ Binance/
 └── .env.local                  # Environment variables
 ```
 
-## 🛠️ Cài đặt
+## 🚀 Setup trên Server Mới
+
+**Bạn đang setup trên server mới (chưa có gì cài đặt)?**
+
+👉 **Xem hướng dẫn chi tiết**: [`SETUP_SERVER_GUIDE.md`](./SETUP_SERVER_GUIDE.md) - Hướng dẫn từ đầu (cài Git, Node.js, PM2, Nginx...)
+
+👉 **Hoặc xem tóm tắt nhanh**: [`QUICK_SETUP.md`](./QUICK_SETUP.md) - Cho người đã có kinh nghiệm
+
+**Script tự động setup cơ bản:**
+```bash
+# Trên server Ubuntu mới, chạy với quyền root
+sudo ./setup-server.sh
+```
+
+---
+
+## 🛠️ Cài đặt (Local Development)
 
 ### 1. Clone và cài đặt dependencies
 
