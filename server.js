@@ -5,8 +5,8 @@ const config = require('./config');
 const VolumeMonitorScheduler = require('./features/volumeMonitor/volumeMonitorScheduler');
 const VolumeMonitorService = require('./features/volumeMonitor/volumeMonitorService');
 const EMAMonitorScheduler = require('./features/emaMonitor/emaMonitorScheduler');
-const FuturesEMAMonitorScheduler = require('./features/futuresEMAMonitor/futuresEMAMonitorScheduler');
-const TelegramService = require('./telegramService');
+// const FuturesEMAMonitorScheduler = require('./features/futuresEMAMonitor/futuresEMAMonitorScheduler');
+// const TelegramService = require('./telegramService');
 const telegramBotRoutes = require('./features/telegramBot/telegramBotRoutes');
 
 // Console log capture
@@ -85,8 +85,8 @@ const binanceAPI = new BinanceAPI();
 const volumeMonitorScheduler = new VolumeMonitorScheduler();
 const volumeMonitorService = new VolumeMonitorService();
 const emaMonitorScheduler = new EMAMonitorScheduler();
-const futuresEMAMonitorScheduler = new FuturesEMAMonitorScheduler();
-const telegramService = new TelegramService();
+// const futuresEMAMonitorScheduler = new FuturesEMAMonitorScheduler();
+// const telegramService = new TelegramService();
 
 // Middleware
 app.use(cors());
@@ -736,7 +736,7 @@ app.listen(config.PORT, () => {
   console.log(`🔍 Health check: http://localhost:${config.PORT}/health`);
   console.log(`📈 Volume Monitor API: http://localhost:${config.PORT}/api/volume-monitor/status`);
   console.log(`📉 EMA Monitor API: http://localhost:${config.PORT}/api/ema-monitor/status`);
-  console.log(`🎯 Futures EMA Monitor API: http://localhost:${config.PORT}/api/futures-ema-monitor/status`);
+  // console.log(`🎯 Futures EMA Monitor API: http://localhost:${config.PORT}/api/futures-ema-monitor/status`);
   console.log(`🤖 Telegram Bot API: http://localhost:${config.PORT}/api/telegram-bot/test`);
   console.log(`📋 Console Logs API: http://localhost:${config.PORT}/api/console-logs`);
   
@@ -749,11 +749,11 @@ app.listen(config.PORT, () => {
   emaMonitorScheduler.start();
   
   // Tự động khởi động Futures EMA monitor scheduler
-  console.log('🔄 Đang khởi động Futures EMA Monitor Scheduler...');
-  futuresEMAMonitorScheduler.start();
+  // console.log('🔄 Đang khởi động Futures EMA Monitor Scheduler...');
+  // futuresEMAMonitorScheduler.start();
   
   // Test kết nối AI Bot
-  console.log('🤖 Đang kiểm tra AI Bot...');
+  // console.log('🤖 Đang kiểm tra AI Bot...');
   // testAIBotConnections();
 });
 
